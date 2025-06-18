@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แผนที่กล้องทางหลวงภาคใต้</title>
+    
+    <!-- เรียกใช้ Leaflet.js สำหรับแผนที่ -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- เรียกใช้ hls.js สำหรับเล่นไฟล์ m3u8 -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap');
+        
+        :root {
+            --primary-color: #1e88e5;
+            --primary-dark: #1565c0;
+            --primary-light: #64b5f6;
+            --secondary-color: #ff8f00;
+            --background-light: #f5f7fa;
+            --background-dark: #37474f;
+            --text-light: #ffffff;
+            --text-dark: #212121;
+            --text-muted: #757575;
+            --border-color: #e0e0e0;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --danger-color: #f44336;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Prompt', 'Sarabun', Arial, sans-serif;
+            overflow: hidden;
+            background-color: var(--background-light);
+            color: var(--text-dark);
+        }
+        
+        .main-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background-color: var(--background-light);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            z-index: 1000;
+            transition: margin-left 0.3s ease;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sidebar.collapsed {
+            margin-left: -300px;
+        }
+        
+        .sidebar-header {
+            background-color: var(--primary-color);
+            color: var(--text-light);
+            padding: 18px 15px;
+            font-size: 20px;
+            font-weight: 600;
+            text-align: center;
+            width: 100%;
+            display: block;
+            box-sizing: border-box;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .camera-list {
+            padding: 15px;
+        }
+        
+        .camera-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin: 6px 0;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        
+        .camera-item:hover {
+            background-color: rgba(30, 136, 229, 0.08);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .camera-item-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+        }
+        
+        .camera-item-name {
+            font-size: 14px;
+            color: var(--text-dark);
+            flex: 1;
+            font-weight: 500;
+        }
+        
+        .province-header {
+            background: linear-gradient(to right, var(--primary-color), var(--primary-light));
+            padding: 10px 15px;
+            margin: 15px 0 8px 0;
+            border-radius: 8px;
+            font-weight: 600;
+            color: var(--text-light);
+            font-size: 16px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .toggle-sidebar {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 1001;
+            background-color: var(--primary-color);
+            color: var(--text-light);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-sidebar:hover {
+            background-color: var(--primary-dark);
+            transform: scale(1.05);
+        }
+        
+        #map {
+            flex: 1;
+            height: 100vh;
+            z-index: 1;
+            box-shadow: inset 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .camera-icon {
+            width: 32px;
+            height: 32px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+        
+        .video-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            backdrop-filter: blur(3px);
+        }
+        
+        .video-content {
+            position: relative;
+            width: 80%;
+            max-width: 800px;
+            background-color: var(--background-light);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .video-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: linear-gradient(to right, var(--primary-color), var(--primary-dark));
+            color: var(--text-light);
+        }
+        
+        .video-title {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            font-size: 24px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .close-btn:hover {
+            transform: scale(1.2);
+        }
+        
+        #video-player {
+            width: 100%;
+            height: auto;
+            max-height: 70vh;
+            display: block;
+            background-color: #000;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-light);
+            font-size: 18px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 12px 25px;
+            border-radius: 50px;
+            display: none;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .leaflet-popup-content {
+            text-align: center;
+            padding: 8px 5px;
+        }
+        
+        .camera-btn {
+            background: linear-gradient(to right, var(--primary-color), var(--primary-dark));
+            color: var(--text-light);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 8px;
+            font-family: 'Prompt', 'Sarabun', Arial, sans-serif;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .camera-btn:hover {
+            background: linear-gradient(to right, var(--primary-dark), var(--primary-color));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 250px;
+            }
+            
+            .sidebar.collapsed {
+                margin-left: -250px;
+            }
+            
+            .video-content {
+                width: 95%;
+            }
+            
+            .video-title {
+                font-size: 16px;
+            }
+            
+            .camera-item {
+                padding: 10px;
+            }
+            
+            .province-header {
+                padding: 8px 12px;
+                font-size: 15px;
+            }
+            
+            .toggle-sidebar {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- ปุ่มเปิด/ปิดเมนู -->
+        <button class="toggle-sidebar" onclick="toggleSidebar()">☰ เมนู</button>
+        
+        <!-- เมนูรายการกล้อง -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                 รวมกล้อง
+            </div>
+            <div class="camera-list" id="camera-list">
+                <!-- รายการกล้องจะถูกสร้างโดย JavaScript -->
+            </div>
+        </div>
+        
+        <!-- แผนที่ -->
+        <div id="map"></div>
+    </div>
+    
+    <!-- ส่วนแสดงวิดีโอ -->
+    <div class="video-container" id="video-container">
+        <div class="video-content">
+            <div class="video-header">
+                <div class="video-title" id="video-title">กล้องทางหลวง</div>
+                <button class="close-btn" id="close-btn">&times;</button>
+            </div>
+            <video id="video-player" controls></video>
+            <div class="loading" id="loading">กำลังโหลด...</div>
+        </div>
+    </div>
+    
+    <script>
+        // ข้อมูลกล้องทางหลวง พร้อมจังหวัด (นำสถานะออก)
+        const cameras = [
+            { name: "หนองจิก", lat: 6.84974, lng: 101.19548, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_013.stream/playlist.m3u8", province: "ปัตตานี" },
+            { name: "จะนะ", lat: 7.00364, lng: 100.67241, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_012.stream/playlist.m3u8", province: "สงขลา" },
+            { name: "ถ.ลพบุรีราเมศ", lat: 7.07166, lng: 100.49274, url: "https://streaming1.highwaytraffic.go.th/Phase8/PER_8_036.stream/playlist.m3u8", province: "สงขลา" },
+            { name: "ป่าบอน", lat: 7.11811, lng: 100.32131, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_010.stream/playlist.m3u8", province: "พัทลุง" },
+            { name: "สิงหนคร", lat: 7.25643, lng: 100.52826, url: "https://streaming1.highwaytraffic.go.th/Phase8/PER_8_035.stream/playlist.m3u8", province: "สงขลา" },
+            { name: "ห้วยยอด", lat: 7.55206, lng: 99.58181, url: "https://streaming2.highwaytraffic.go.th/Phase18/PER_18_003.stream/playlist.m3u8", province: "ตรัง" },
+            { name: "เขาคราม", lat: 8.20723, lng: 98.81496, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_007.stream/playlist.m3u8", province: "กระบี่" },
+            { name: "กะโสม", lat: 8.40806, lng: 98.45695, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_008.stream/playlist.m3u8", province: "พังงา" },
+            { name: "ทับปุด", lat: 8.50891, lng: 98.65739, url: "https://streaming1.highwaytraffic.go.th/Phase8/PER_8_024.stream/playlist.m3u8", province: "พังงา" },
+            { name: "บางใหญ่", lat: 9.04987, lng: 99.36445, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_005.stream/playlist.m3u8", province: "สุราษฎร์ธานี" },
+            { name: "วงแหวนรอบนอก", lat: 9.13436, lng: 99.25231, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_003.stream/playlist.m3u8", province: "สุราษฎร์ธานี" },
+            { name: "บ้านใน", lat: 9.23859, lng: 99.69694, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_006.stream/playlist.m3u8", province: "สุราษฎร์ธานี" },
+            { name: "วังตะกอ", lat: 9.97798, lng: 99.04399, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_009.stream/playlist.m3u8", province: "ชุมพร" },
+            { name: "บางสะพาน", lat: 11.2044, lng: 99.40421, url: "https://streaming1.highwaytraffic.go.th/Phase5/PER_5_008.stream/playlist.m3u8", province: "ประจวบคีรีขันธ์" },
+            { name: "บ่อนอก", lat: 11.94599, lng: 99.82448, url: "https://streaming1.highwaytraffic.go.th/Phase5/PER_5_007_OUT.stream/playlist.m3u8", province: "ประจวบคีรีขันธ์" },
+            { name: "บางนอน", lat: 10.01361, lng: 98.65619, url: "https://streaming2.highwaytraffic.go.th/Phase18/PER_18_004.stream/playlist.m3u8", province: "ระนอง" },
+            { name: "ราชกรูด", lat: 9.74331, lng: 98.5975, url: "https://streaming2.highwaytraffic.go.th/Phase18/PER_18_005.stream/playlist.m3u8", province: "ระนอง" },
+            { name: "ท่าเรือ", lat: 8.27622, lng: 99.99974, url: "https://streaming2.highwaytraffic.go.th/Phase18/PER_18_002.stream/playlist.m3u8", province: "นครศรีธรรมราช" },
+            { name: "ยะลา", lat: 6.61849, lng: 101.23681, url: "https://streaming2.highwaytraffic.go.th/Phase18/PER_18_007.stream/playlist.m3u8", province: "ยะลา" },
+            { name: "ยี่งอ", lat: 6.4039, lng: 101.72462, url: "https://streaming2.highwaytraffic.go.th/Phase18/PER_18_006.stream/playlist.m3u8", province: "นราธิวาส" }
+        ];
+        
+        // ฟังก์ชันตรวจสอบสถานะกล้องถูกนำออกตามที่ร้องขอ
+        
+        // สร้างแผนที่
+        const map = L.map('map').setView([8.5, 99.5], 7);
+        
+        // เลเยอร์แผนที่พื้นฐาน - ใช้แผนที่สวยงามมากขึ้น
+        const osmLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        });
+        
+        // เลเยอร์แผนที่ดาวเทียม
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+        
+        // เลเยอร์แผนที่มืด
+        const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        });
+        
+        // เพิ่มเลเยอร์เริ่มต้น
+        osmLayer.addTo(map);
+        
+        // สร้างตัวควบคุมเลเยอร์
+        const baseLayers = {
+            "แผนที่ถนน": osmLayer,
+            "แผนที่ดาวเทียม": satelliteLayer,
+            "แผนที่โหมดมืด": darkLayer
+        };
+        
+        L.control.layers(baseLayers).addTo(map);
+        
+        // เพิ่มสเกลบนแผนที่
+        L.control.scale({
+            imperial: false,
+            metric: true,
+            position: 'bottomright'
+        }).addTo(map);
+        
+        // ไอคอนกล้อง
+        const cameraIcon = L.icon({
+            iconUrl: 'https://public.youware.com/users-website-assets/prod/87ede7ac-82ea-4c1d-88d8-7109917d3674/camera.png',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+            popupAnchor: [0, -20]
+        });
+        
+        // เก็บมาร์กเกอร์ไว้ในตัวแปร
+        const markers = {};
+        
+        // วาดมาร์กเกอร์บนแผนที่
+        cameras.forEach((camera, index) => {
+            const marker = L.marker([camera.lat, camera.lng], {icon: cameraIcon}).addTo(map);
+            
+            // เพิ่มป็อปอัพ (นำสถานะออนไลน์/ออฟไลน์ออก)
+            marker.bindPopup(`
+                <strong>${camera.name}</strong> (${camera.province})<br>
+                <button class="camera-btn" onclick="openVideo('${camera.url}', '${camera.name}')">ดูกล้อง</button>
+            `);
+            
+            // เก็บมาร์กเกอร์ไว้ในอาร์เรย์
+            markers[index] = marker;
+        });
+        
+        // สร้างรายการกล้องในเมนู
+        function createCameraList() {
+            const cameraListElement = document.getElementById('camera-list');
+            cameraListElement.innerHTML = '';
+            
+            // จัดกลุ่มกล้องตามจังหวัด
+            const provinceGroups = {};
+            
+            cameras.forEach((camera) => {
+                if (!provinceGroups[camera.province]) {
+                    provinceGroups[camera.province] = [];
+                }
+                provinceGroups[camera.province].push(camera);
+            });
+            
+            // คำนวณค่าเฉลี่ยละติจูดของแต่ละจังหวัด
+            const provinceLatitudes = {};
+            Object.keys(provinceGroups).forEach(province => {
+                const cameras = provinceGroups[province];
+                const totalLat = cameras.reduce((sum, camera) => sum + camera.lat, 0);
+                provinceLatitudes[province] = totalLat / cameras.length;
+            });
+            
+            // เรียงจังหวัดตามละติจูดจากมากไปน้อย (จากเหนือลงใต้)
+            const sortedProvinces = Object.keys(provinceGroups).sort((a, b) => {
+                return provinceLatitudes[b] - provinceLatitudes[a];
+            });
+            
+            // สร้างรายการกล้องเรียงตามจังหวัด
+            sortedProvinces.forEach((province) => {
+                const camerasInProvince = provinceGroups[province];
+                
+                // เพิ่มหัวข้อจังหวัด
+                const provinceHeader = document.createElement('div');
+                provinceHeader.className = 'province-header';
+                provinceHeader.innerHTML = `
+                    <span>${province}</span>
+                    <span class="province-count">${camerasInProvince.length} กล้อง</span>
+                `;
+                cameraListElement.appendChild(provinceHeader);
+                
+                // เรียงลำดับกล้องในจังหวัดตามละติจูดจากมากไปน้อย (จากเหนือลงใต้)
+                const sortedCameras = camerasInProvince.sort((a, b) => b.lat - a.lat);
+                
+                // เพิ่มรายการกล้องในจังหวัด
+                sortedCameras.forEach((camera) => {
+                    const index = cameras.findIndex(c => c.name === camera.name && c.province === camera.province);
+                    
+                    const cameraItem = document.createElement('div');
+                    cameraItem.className = 'camera-item';
+                    cameraItem.onclick = () => goToCamera(index);
+                    cameraItem.id = `camera-item-${index}`;
+                    
+                    cameraItem.innerHTML = `
+                        <img src="https://public.youware.com/users-website-assets/prod/87ede7ac-82ea-4c1d-88d8-7109917d3674/camera.png" 
+                             alt="กล้อง" class="camera-item-icon">
+                        <div class="camera-item-name">${camera.name}</div>
+                        <div class="camera-item-province">${camera.province}</div>
+                    `;
+                    
+                    cameraListElement.appendChild(cameraItem);
+                });
+            });
+        }
+        
+        
+        // ฟังก์ชันอัพเดตสถานะกล้องในรายการถูกนำออกตามที่ร้องขอ
+        
+        // ฟังก์ชันไปยังตำแหน่งกล้อง
+        function goToCamera(index) {
+            const camera = cameras[index];
+            const marker = markers[index];
+            
+            // ย้ายแผนที่ไปยังตำแหน่งกล้อง
+            map.setView([camera.lat, camera.lng], 12);
+            
+            // เปิดป็อปอัพ
+            marker.openPopup();
+        }
+        
+        // เรียกฟังก์ชันสร้างรายการกล้อง
+        createCameraList();
+        
+        // ฟังก์ชันเปิดวิดีโอ
+        function openVideo(url, name) {
+            const videoContainer = document.getElementById('video-container');
+            const videoTitle = document.getElementById('video-title');
+            const videoPlayer = document.getElementById('video-player');
+            const loading = document.getElementById('loading');
+            
+            // แสดงชื่อกล้อง
+            videoTitle.textContent = `กล้องทางหลวง: ${name}`;
+            
+            // แสดงหน้าต่างวิดีโอ
+            videoContainer.style.display = 'flex';
+            
+            // แสดงสถานะกำลังโหลด
+            loading.style.display = 'block';
+            
+            // ตรวจสอบว่าเบราว์เซอร์รองรับ HLS หรือไม่
+            if (Hls.isSupported()) {
+                const hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(videoPlayer);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    videoPlayer.play();
+                    loading.style.display = 'none';
+                });
+                
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    if (data.fatal) {
+                        loading.textContent = 'ไม่สามารถโหลดวิดีโอได้';
+                    }
+                });
+            } 
+            // สำหรับเบราว์เซอร์ที่รองรับ HLS โดยตรง เช่น Safari
+            else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                videoPlayer.src = url;
+                videoPlayer.addEventListener('loadedmetadata', function() {
+                    videoPlayer.play();
+                    loading.style.display = 'none';
+                });
+                videoPlayer.addEventListener('error', function() {
+                    loading.textContent = 'ไม่สามารถโหลดวิดีโอได้';
+                });
+            } else {
+                loading.textContent = 'เบราว์เซอร์ไม่รองรับการเล่นวิดีโอแบบ HLS';
+            }
+        }
+        
+        // ปิดหน้าต่างวิดีโอ
+        document.getElementById('close-btn').addEventListener('click', function() {
+            const videoContainer = document.getElementById('video-container');
+            const videoPlayer = document.getElementById('video-player');
+            
+            // หยุดการเล่นวิดีโอ
+            videoPlayer.pause();
+            videoPlayer.src = '';
+            
+            // ซ่อนหน้าต่างวิดีโอ
+            videoContainer.style.display = 'none';
+        });
+        
+        // ฟังก์ชันเปิด/ปิดเมนู
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+    </script>
+</body>
+</html>
