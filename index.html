@@ -206,11 +206,19 @@ function switchBaseMap(type) {
     </div>
     <div class="province-group">
       <div class="province-title">นครศรีธรรมราช</div>
+      <div class="camera-item" onclick="goToCamera('ท่าเรือ', 8.95986, 99.89484)">สิชล</div>
+    </div>
+    <div class="province-group">
+      <div class="province-title">นครศรีธรรมราช</div>
       <div class="camera-item" onclick="goToCamera('ท่าเรือ', 8.27622, 99.99974)">ท่าเรือ</div>
     </div>
     <div class="province-group">
       <div class="province-title">กระบี่</div>
       <div class="camera-item" onclick="goToCamera('เขาคราม', 8.20723, 98.81496)">เขาคราม</div>
+    </div>
+    <div class="province-group">
+      <div class="province-title">ภูเก็ต</div>
+      <div class="camera-item" onclick="goToCamera('ถลาง', 8.066916, 98.3424183)">ถลาง</div>
     </div>
     <div class="province-group">
       <div class="province-title">ตรัง</div>
@@ -260,6 +268,7 @@ const cameras = [
   { name: "เขาคราม", lat: 8.20723, lng: 98.81496, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_007.stream/playlist.m3u8", province: "กระบี่" },
   { name: "กะโสม", lat: 8.40806, lng: 98.45695, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_008.stream/playlist.m3u8", province: "พังงา" },
   { name: "ทับปุด", lat: 8.50891, lng: 98.65739, url: "https://streaming1.highwaytraffic.go.th/Phase8/PER_8_024.stream/playlist.m3u8", province: "พังงา" },
+  { name: "ภูเก็ต", lat: 8.066916, lng: 98.3424183, url: "https://streaming1.highwaytraffic.go.th/Phase8/PER_8_032_IN.stream/playlist.m3u8", province: "ภูเก็ต" },
   { name: "บางใหญ่", lat: 9.04987, lng: 99.36445, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_005.stream/playlist.m3u8", province: "สุราษฎร์ธานี" },
   { name: "วงแหวนรอบนอก", lat: 9.13436, lng: 99.25231, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_003.stream/playlist.m3u8", province: "สุราษฎร์ธานี" },
   { name: "บ้านใน", lat: 9.23859, lng: 99.69694, url: "https://streaming2.highwaytraffic.go.th/Phase14/PER_14_006.stream/playlist.m3u8", province: "สุราษฎร์ธานี" },
@@ -269,6 +278,7 @@ const cameras = [
   { name: "บางนอน", lat: 10.01361, lng: 98.65619, url: "https://streaming2.highwaytraffic.go.th/Phase18/PER_18_004.stream/playlist.m3u8", province: "ระนอง" },
   { name: "ราชกรูด", lat: 9.74331, lng: 98.5975, url: "https://streaming2.highwaytraffic.go.th/Phase18/PER_18_005.stream/playlist.m3u8", province: "ระนอง" },
   { name: "ท่าเรือ", lat: 8.27622, lng: 99.99974, url: "https://streaming2.highwaytraffic.go.th/Phase18/PER_18_002.stream/playlist.m3u8", province: "นครศรีธรรมราช" },
+  { name: "สิชล", lat: 8.95986, lng: 99.89484, url: "https://streaming1.highwaytraffic.go.th/Phase8/PER_8_031.stream/playlist.m3u8", province: "นครศรีธรรมราช" },
   { name: "ยะลา", lat: 6.61849, lng: 101.23681, url: "https://streaming2.highwaytraffic.go.th/Phase18/PER_18_007.stream/playlist.m3u8", province: "ยะลา" },
   { name: "ยี่งอ", lat: 6.4039, lng: 101.72462, url: "https://streaming2.highwaytraffic.go.th/Phase18/PER_18_006.stream/playlist.m3u8", province: "นราธิวาส" }
 ];
